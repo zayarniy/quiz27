@@ -261,6 +261,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
     <div id="answerStatus" style="text-align: center; margin-top: 20px; display: none;">
         <div id="answerStatusText" style="font-size: 18px; font-weight: bold;"></div>
     </div>
+    
     <script>
         const socket = io('http://localhost:3000');
         const gameCode = '<?php echo $gameCode; ?>';
@@ -268,11 +269,23 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
         let playerName = localStorage.getItem('quiz_player_name');
         let hasAnswered = false;
         let currentTimer = null;
+        let countdownInterval = null;
 
+        // Проверка наличия данных игрока
         if (!playerId || !playerName) {
             window.location.href = 'game_join.php';
         }
 
+        // Обработка ошибок подключения
+        socket.on('connect_error', (error) => {
+            showToast('Ошибка подключения к серверу', 'error');
+        });
+
+        socket.on('disconnect', () => {
+            showToast('Соединение потеряно. Переподключение...', 'info');
+        });
+
+        // Подключение к игре
         socket.on('connect', () => {
             socket.emit('reconnect_game', {
                 gameCode: gameCode,
@@ -281,10 +294,19 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             });
         });
 
+        // Ошибка подключения к игре
+        socket.on('join_error', (data) => {
+            showToast(data.message, 'error');
+            setTimeout(() => {
+                window.location.href = 'game_join.php';
+            }, 2000);
+        });
 
-
+        // Начало слайда (вопроса)
         socket.on('slide_start', (data) => {
             hasAnswered = false;
+            document.getElementById('answerStatus').style.display = 'none';
+            document.getElementById('answerStatusText').innerHTML = '';
             document.getElementById('waitingArea').style.display = 'none';
             document.getElementById('resultsArea').style.display = 'none';
             document.getElementById('gameArea').style.display = 'none';
@@ -293,18 +315,20 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             let count = 5;
             document.getElementById('countdownNumber').textContent = count;
 
-            const interval = setInterval(() => {
+            if (countdownInterval) clearInterval(countdownInterval);
+            countdownInterval = setInterval(() => {
                 count--;
                 if (count > 0) {
                     document.getElementById('countdownNumber').textContent = count;
                 } else {
-                    clearInterval(interval);
+                    clearInterval(countdownInterval);
                     document.getElementById('countdownArea').style.display = 'none';
                     showQuestion(data.slide, data.duration);
                 }
             }, 1000);
         });
 
+        // Отображение вопроса
         function showQuestion(slide, duration) {
             document.getElementById('gameArea').style.display = 'block';
 
@@ -336,16 +360,21 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }, 1000);
         }
 
-        /*
+        // Отправка ответа
         function submitAnswer(answerIndex) {
             if (hasAnswered) return;
 
             hasAnswered = true;
             disableAnswers();
 
-            socket.emit('submit_answer', { answerIndex });
-        }*/
+            document.getElementById('answerStatus').style.display = 'block';
+            document.getElementById('answerStatusText').innerHTML = '⏳ Ответ отправлен... Ожидание остальных игроков';
+            document.getElementById('answerStatusText').style.color = '#000';
 
+            socket.emit('submit_answer', { answerIndex });
+        }
+
+        // Блокировка кнопок ответов
         function disableAnswers() {
             for (let i = 0; i < 4; i++) {
                 const btn = document.getElementById(`answerBtn${i}`);
@@ -353,26 +382,16 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }
         }
 
+        // Все игроки ответили
         socket.on('all_answered', (data) => {
             showToast(data.message, 'info');
+            document.getElementById('answerStatusText').innerHTML = '✅ ' + data.message;
         });
 
-        function submitAnswer(answerIndex) {
-            if (hasAnswered) return;
-
-            hasAnswered = true;
-            disableAnswers();
-
-            // Показываем статус
-            document.getElementById('answerStatus').style.display = 'block';
-            document.getElementById('answerStatusText').innerHTML = '⏳ Ответ отправлен... Ожидание остальных игроков';
-
-            socket.emit('submit_answer', { answerIndex });
-        }
-
+        // Подтверждение получения ответа
         socket.on('answer_received', (data) => {
             if (data.correct) {
-                //document.getElementById('answerStatusText').innerHTML = '✓ Правильно! +' + Math.floor(Math.random() * 100 + 50) + ' баллов';
+                //document.getElementById('answerStatusText').innerHTML = '✓ Правильно!';
                 //document.getElementById('answerStatusText').style.color = '#48bb78';
                 //showToast('✓ Правильно!', 'success');
             } else {
@@ -382,10 +401,11 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }
         });
 
-
+        // Результаты раунда
         socket.on('slide_results', (data) => {
             if (currentTimer) clearInterval(currentTimer);
-
+            
+            document.getElementById('answerStatus').style.display = 'none';
             document.getElementById('gameArea').style.display = 'none';
             document.getElementById('resultsArea').style.display = 'block';
 
@@ -407,13 +427,19 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }
         });
 
+        // Завершение игры
         socket.on('game_end', (data) => {
+            if (currentTimer) clearInterval(currentTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
+            
             document.getElementById('waitingArea').style.display = 'none';
             document.getElementById('gameArea').style.display = 'none';
             document.getElementById('resultsArea').style.display = 'none';
+            document.getElementById('answerStatus').style.display = 'none';
             document.getElementById('finalResultsArea').style.display = 'block';
 
             const finalList = document.getElementById('finalResultsList');
+            finalList.innerHTML = ''; // Очищаем предыдущие результаты
             let delay = 0;
 
             data.results.forEach((result, index) => {
@@ -431,13 +457,19 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
                 delay += 500;
             });
 
-            localStorage.removeItem('quiz_game_code');
-            localStorage.removeItem('quiz_player_id');
-            localStorage.removeItem('quiz_player_name');
+            // Очищаем localStorage через 10 секунд после окончания игры
+            setTimeout(() => {
+                localStorage.removeItem('quiz_game_code');
+                localStorage.removeItem('quiz_player_id');
+                localStorage.removeItem('quiz_player_name');
+            }, 10000);
         });
 
+        // Игрок исключен
         socket.on('kicked', () => {
             showToast('Вы были исключены из игры', 'error');
+            if (currentTimer) clearInterval(currentTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
             localStorage.removeItem('quiz_game_code');
             localStorage.removeItem('quiz_player_id');
             localStorage.removeItem('quiz_player_name');
@@ -446,8 +478,11 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }, 2000);
         });
 
+        // Хост отключился
         socket.on('host_disconnected', () => {
             showToast('Ведущий отключился. Игра завершена.', 'error');
+            if (currentTimer) clearInterval(currentTimer);
+            if (countdownInterval) clearInterval(countdownInterval);
             localStorage.removeItem('quiz_game_code');
             localStorage.removeItem('quiz_player_id');
             localStorage.removeItem('quiz_player_name');
@@ -456,6 +491,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }, 2000);
         });
 
+        // Вспомогательные функции
         function showToast(message, type) {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -469,40 +505,6 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             div.textContent = text;
             return div.innerHTML;
         }
-
-        socket.on('all_answered', (data) => {
-            showToast(data.message, 'info');
-        });
-/*
-        function submitAnswer(answerIndex) {
-            if (hasAnswered) return;
-
-            hasAnswered = true;
-            disableAnswers();
-
-            // Показываем статус
-            document.getElementById('answerStatus').style.display = 'block';
-            document.getElementById('answerStatusText').innerHTML = '⏳ Ответ отправлен... Ожидание остальных игроков';
-
-            socket.emit('submit_answer', { answerIndex });
-        }
-*/
-        socket.on('answer_received', (data) => {
-            if (data.correct) {
-                document.getElementById('answerStatusText').innerHTML = '✓ Правильно! +' + Math.floor(Math.random() * 100 + 50) + ' баллов';
-                document.getElementById('answerStatusText').style.color = '#48bb78';
-                showToast('✓ Правильно!', 'success');
-            } else {
-                document.getElementById('answerStatusText').innerHTML = '✗ Неправильно';
-                document.getElementById('answerStatusText').style.color = '#f56565';
-                showToast('✗ Неправильно', 'error');
-            }
-        });
-
-        socket.on('slide_results', (data) => {
-            document.getElementById('answerStatus').style.display = 'none';
-            // ... остальной код
-        });
     </script>
 </body>
 

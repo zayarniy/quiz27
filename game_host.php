@@ -546,7 +546,7 @@ try {
             };
 
             document.getElementById('answersGrid').innerHTML = slide.answers.map((answer, index) => `
-                <div class="answer-card" onclick="manualNext()">
+                <div class="answer-card">
                     <div class="answer-icon">${shapes[answer.shape]}</div>
                     <div class="answer-text">${escapeHtml(answer.text)}</div>
                 </div>
