@@ -168,8 +168,8 @@ class Game {
     if (this.timer) clearTimeout(this.timer);
     
     const slide = this.quizData.slides[this.currentSlide];
-    const points = slide.points || 100;
-    
+    const points = 100;
+    console.log('points:'+points);
     // Сортируем правильные ответы по времени
     const correctAnswers = Array.from(this.answers.entries())
       .filter(([_, answer]) => answer.isCorrect)
@@ -179,6 +179,7 @@ class Game {
     correctAnswers.forEach(([playerId, answer], index) => {
       const bonus = Math.max(0, 100 - Math.floor(answer.responseTime / 100));
       const earnedPoints = points + bonus;
+      console.log("earnedPoints:"+earnedPoints)
       const currentScore = this.scores.get(playerId) || 0;
       this.scores.set(playerId, currentScore + earnedPoints);
       

@@ -336,6 +336,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             }, 1000);
         }
 
+        /*
         function submitAnswer(answerIndex) {
             if (hasAnswered) return;
 
@@ -343,7 +344,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
             disableAnswers();
 
             socket.emit('submit_answer', { answerIndex });
-        }
+        }*/
 
         function disableAnswers() {
             for (let i = 0; i < 4; i++) {
@@ -371,13 +372,13 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
 
         socket.on('answer_received', (data) => {
             if (data.correct) {
-                document.getElementById('answerStatusText').innerHTML = '✓ Правильно! +' + Math.floor(Math.random() * 100 + 50) + ' баллов';
-                document.getElementById('answerStatusText').style.color = '#48bb78';
-                showToast('✓ Правильно!', 'success');
+                //document.getElementById('answerStatusText').innerHTML = '✓ Правильно! +' + Math.floor(Math.random() * 100 + 50) + ' баллов';
+                //document.getElementById('answerStatusText').style.color = '#48bb78';
+                //showToast('✓ Правильно!', 'success');
             } else {
-                document.getElementById('answerStatusText').innerHTML = '✗ Неправильно';
-                document.getElementById('answerStatusText').style.color = '#f56565';
-                showToast('✗ Неправильно', 'error');
+                //document.getElementById('answerStatusText').innerHTML = '✗ Неправильно';
+                //document.getElementById('answerStatusText').style.color = '#f56565';
+                //showToast('✗ Неправильно', 'error');
             }
         });
 
@@ -472,7 +473,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
         socket.on('all_answered', (data) => {
             showToast(data.message, 'info');
         });
-
+/*
         function submitAnswer(answerIndex) {
             if (hasAnswered) return;
 
@@ -485,7 +486,7 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
 
             socket.emit('submit_answer', { answerIndex });
         }
-
+*/
         socket.on('answer_received', (data) => {
             if (data.correct) {
                 document.getElementById('answerStatusText').innerHTML = '✓ Правильно! +' + Math.floor(Math.random() * 100 + 50) + ' баллов';
