@@ -3,10 +3,7 @@
 header('Content-Type: application/json');
 
 // Подключение к базе данных
-$host = 'localhost';
-$dbname = 'quiz27';
-$user = 'root';
-$pass = '';
+require_once 'db.php';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);

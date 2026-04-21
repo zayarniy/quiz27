@@ -1,6 +1,7 @@
 <?php
 // delete_user.php - Скрипт удаления пользователя
 session_start();
+require_once 'db.php';
 
 // Проверка прав администратора
 // if (!isset($_SESSION['is_admin']) || $_SESSION['is_admin'] !== true) {
@@ -8,11 +9,6 @@ session_start();
 //     exit();
 // }
 
-// Подключение к базе данных
-$host = 'localhost';
-$dbname = 'quiz27';
-$user = 'root';
-$pass = '';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);

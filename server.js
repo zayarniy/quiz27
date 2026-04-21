@@ -20,8 +20,8 @@ const io = socketIo(server, {
 // Подключение к базе данных
 const dbConfig = {
   host: 'localhost',
-  user: 'root',
-  password: '',
+  user: 'quiz',
+  password: 'Quiz2025!@#Secure',
   database: 'quiz27'
 };
 
@@ -474,7 +474,7 @@ app.post('/api/save_game_result', async (req, res) => {
 });
 
 // Запуск сервера
-const PORT = 3000;
+const PORT = 3001;
 initDB().then(() => {
   server.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);

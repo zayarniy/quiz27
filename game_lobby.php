@@ -117,7 +117,8 @@ $user_id = $_SESSION['user_id'];
 </div>
 
 <script>
-    const socket = io('http://localhost:3000');
+    //const socket = io('http://localhost:3000');
+    const socket = io('http://quiz3000.site:3001');
     let sessionCode = null;
     let sessionId = null;
 

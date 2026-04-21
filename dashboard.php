@@ -6,11 +6,7 @@ if (!isset($_SESSION['logged_in']) || $_SESSION['logged_in'] !== true) {
     header('Location: login.php');
     exit();
 }
-
-$host = 'localhost';
-$dbname = 'quiz27';
-$user = 'root';
-$pass = '';
+require_once 'db.php';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);

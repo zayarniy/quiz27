@@ -263,7 +263,8 @@ $gameCode = isset($_GET['code']) ? $_GET['code'] : '';
     </div>
     
     <script>
-        const socket = io('http://localhost:3000');
+        //const socket = io('http://localhost:3000');
+        const socket = io('http://quiz3000.site:3001');
         const gameCode = '<?php echo $gameCode; ?>';
         let playerId = localStorage.getItem('quiz_player_id');
         let playerName = localStorage.getItem('quiz_player_name');

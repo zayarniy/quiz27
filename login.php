@@ -3,11 +3,7 @@
 session_start();
 
 // Подключение к базе данных
-$host = 'localhost';
-$dbname = 'quiz27';
-$user = 'root';
-$pass = '';
-
+require_once 'db.php';
 $error = '';
 
 // Обработка входа

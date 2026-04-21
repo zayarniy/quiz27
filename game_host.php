@@ -15,11 +15,7 @@ if (!$quiz_id) {
     exit();
 }
 
-// Загрузка данных викторины
-$host = 'localhost';
-$dbname = 'quiz27';
-$user = 'root';
-$pass = '';
+require_once 'db.php';
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
@@ -387,12 +383,15 @@ try {
                 </thead>
                 <tbody id="resultsBody"></tbody>
             </table>
+            <!--
             <button class="next-btn" onclick="nextSlide()">Следующий вопрос →</button>
+            -->
         </div>
     </div>
 
     <script>
-        const socket = io('http://localhost:3000');
+        //const socket = io('http://localhost:3000');
+        const socket = io('http://quiz3000.site:3001');
         let gameCode = null;
         let currentSlide = 0;
         let totalSlides = <?php echo count($slides); ?>;
