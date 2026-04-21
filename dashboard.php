@@ -11,7 +11,7 @@ require_once 'db.php';
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $user, $pass);
     $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
+} catch (PDOException $e) {
     die("Ошибка подключения к базе данных: " . $e->getMessage());
 }
 
@@ -24,78 +24,84 @@ try {
     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM quizzes WHERE user_id = ?");
     $stmt->execute([$user_id]);
     $totalQuizzes = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Всего проведено игр (по викторинам пользователя)
     $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM game_sessions gs JOIN quizzes q ON gs.quiz_id = q.id WHERE q.user_id = ?");
     $stmt->execute([$user_id]);
     $totalGames = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Всего игроков (уникальных) в играх пользователя
     $stmt = $pdo->prepare("SELECT COUNT(DISTINCT gp.player_name) as count FROM game_players gp JOIN game_sessions gs ON gp.session_id = gs.id JOIN quizzes q ON gs.quiz_id = q.id WHERE q.user_id = ?");
     $stmt->execute([$user_id]);
     $totalPlayers = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    
+
     // Средний балл (заглушка)
     $avgScore = 78;
-    
-} catch(PDOException $e) {
+
+} catch (PDOException $e) {
     $totalQuizzes = 0;
     $totalGames = 0;
     $totalPlayers = 0;
     $avgScore = 0;
 }
 
-// Получение списка викторин
-$quizzes = [];
+
+// Получение списка викторин с количеством слайдов (один запрос!)
 try {
-    $stmt = $pdo->prepare("SELECT id, title, description, created_at, updated_at FROM quizzes WHERE user_id = ? ORDER BY updated_at DESC");
+    $stmt = $pdo->prepare("
+        SELECT 
+            q.id, 
+            q.title, 
+            q.description, 
+            q.created_at, 
+            q.updated_at,
+            COUNT(s.id) as slides_count
+        FROM quizzes q
+        LEFT JOIN slides s ON q.id = s.quiz_id
+        WHERE q.user_id = ?
+        GROUP BY q.id
+        ORDER BY q.updated_at DESC
+    ");
     $stmt->execute([$user_id]);
     $quizzes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // Подсчет количества слайдов для каждой викторины
-    foreach ($quizzes as &$quiz) {
-        $stmt = $pdo->prepare("SELECT COUNT(*) as count FROM slides WHERE quiz_id = ?");
-        $stmt->execute([$quiz['id']]);
-        $quiz['slides_count'] = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
-    }
-} catch(PDOException $e) {
+} catch (PDOException $e) {
     $quizzes = [];
 }
 
 // Обработка AJAX запросов
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WITH']) && $_SERVER['HTTP_X_REQUESTED_WITH'] === 'XMLHttpRequest') {
     header('Content-Type: application/json');
-    
+
     $action = $_POST['action'] ?? '';
-    
+
     try {
         if ($action === 'create_quiz') {
             $title = trim($_POST['title'] ?? '');
             $description = trim($_POST['description'] ?? '');
-            
+
             if (empty($title)) {
                 echo json_encode(['success' => false, 'message' => 'Введите название викторины']);
                 exit();
             }
-            
+
             $stmt = $pdo->prepare("INSERT INTO quizzes (user_id, title, description, created_at, updated_at) VALUES (?, ?, ?, NOW(), NOW())");
             $stmt->execute([$user_id, $title, $description]);
             $quiz_id = $pdo->lastInsertId();
-            
+
             echo json_encode(['success' => true, 'quiz_id' => $quiz_id, 'message' => 'Викторина создана']);
             exit();
         }
-        
+
         if ($action === 'delete_quiz') {
-            $quiz_id = (int)$_POST['quiz_id'];
-            
+            $quiz_id = (int) $_POST['quiz_id'];
+
             $stmt = $pdo->prepare("DELETE FROM quizzes WHERE id = ? AND user_id = ?");
             $stmt->execute([$quiz_id, $user_id]);
-            
+
             echo json_encode(['success' => true, 'message' => 'Викторина удалена']);
             exit();
         }
-        
+
         if ($action === 'get_stats') {
             echo json_encode([
                 'success' => true,
@@ -106,8 +112,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             ]);
             exit();
         }
-        
-    } catch(Exception $e) {
+
+    } catch (Exception $e) {
         echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         exit();
     }
@@ -115,6 +121,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
 ?>
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -164,8 +171,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
 
         .logout-btn {
             padding: 8px 16px;
-            background: rgba(255,255,255,0.2);
-            border: 1px solid rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             border-radius: 8px;
             color: white;
             text-decoration: none;
@@ -173,7 +180,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
         }
 
         .logout-btn:hover {
-            background: rgba(255,255,255,0.3);
+            background: rgba(255, 255, 255, 0.3);
         }
 
         /* Main Container */
@@ -195,7 +202,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             background: white;
             padding: 25px;
             border-radius: 15px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
             text-align: center;
             transition: transform 0.3s;
         }
@@ -233,14 +240,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             background: white;
             border-radius: 15px;
             overflow: hidden;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.1);
             transition: transform 0.3s, box-shadow 0.3s;
             cursor: pointer;
         }
 
         .module-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
         }
 
         .module-header {
@@ -290,7 +297,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             background: white;
             border-radius: 15px;
             padding: 25px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
         }
 
         .section-header {
@@ -333,7 +340,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             border-collapse: collapse;
         }
 
-        th, td {
+        th,
+        td {
             padding: 15px;
             text-align: left;
             border-bottom: 1px solid #e0e0e0;
@@ -414,7 +422,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             justify-content: center;
             align-items: center;
             z-index: 1000;
@@ -496,6 +504,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
                 transform: translateX(100%);
                 opacity: 0;
             }
+
             to {
                 transform: translateX(0);
                 opacity: 1;
@@ -507,11 +516,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
                 flex-direction: column;
                 text-align: center;
             }
-            
+
             .quiz-actions {
                 flex-direction: column;
             }
-            
+
             .quiz-btn {
                 width: 100%;
                 text-align: center;
@@ -519,6 +528,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
         }
     </style>
 </head>
+
 <body>
     <div class="header">
         <div class="logo">
@@ -608,6 +618,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
                     <table>
                         <thead>
                             <tr>
+                                <th>id</th>
                                 <th>Название</th>
                                 <th>Описание</th>
                                 <th>Слайдов</th>
@@ -617,18 +628,23 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
                         </thead>
                         <tbody>
                             <?php foreach ($quizzes as $quiz): ?>
-                            <tr data-quiz-id="<?php echo $quiz['id']; ?>">
-                                <td><strong><?php echo htmlspecialchars($quiz['title']); ?></strong></td>
-                                <td><?php echo htmlspecialchars($quiz['description'] ?: '—'); ?></td>
-                                <td><?php echo $quiz['slides_count']; ?></td>
-                                <td><?php echo date('d.m.Y H:i', strtotime($quiz['updated_at'])); ?></td>
-                                <td class="quiz-actions">
-                                    <button class="quiz-btn quiz-btn-play" onclick="playQuiz(<?php echo $quiz['id']; ?>)">🎮 Играть</button>
-                                    <button class="quiz-btn quiz-btn-edit" onclick="editQuiz(<?php echo $quiz['id']; ?>)">✏️ Редактировать</button>
-                                    <button class="quiz-btn quiz-btn-stats" onclick="viewStats(<?php echo $quiz['id']; ?>)">📊 Статистика</button>
-                                    <button class="quiz-btn quiz-btn-delete" onclick="deleteQuiz(<?php echo $quiz['id']; ?>)">🗑️ Удалить</button>
-                                </td>
-                            </tr>
+                                <tr data-quiz-id="<?php echo $quiz['id']; ?>">
+                                    <td><?php echo $quiz['id']; ?></td>
+                                    <td><strong><?php echo htmlspecialchars($quiz['title']); ?></strong></td>
+                                    <td><?php echo htmlspecialchars($quiz['description'] ?: '—'); ?></td>
+                                    <td><?php echo $quiz['slides_count']; ?></td>
+                                    <td><?php echo date('d.m.Y H:i', strtotime($quiz['updated_at'])); ?></td>
+                                    <td class="quiz-actions">
+                                        <button class="quiz-btn quiz-btn-play" onclick="playQuiz(<?php echo $quiz['id']; ?>)">🎮
+                                            Играть</button>
+                                        <button class="quiz-btn quiz-btn-edit" onclick="editQuiz(<?php echo $quiz['id']; ?>)">✏️
+                                            Редактировать</button>
+                                        <button class="quiz-btn quiz-btn-stats"
+                                            onclick="viewStats(<?php echo $quiz['id']; ?>)">📊 Статистика</button>
+                                        <button class="quiz-btn quiz-btn-delete"
+                                            onclick="deleteQuiz(<?php echo $quiz['id']; ?>)">🗑️ Удалить</button>
+                                    </td>
+                                </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
@@ -665,26 +681,26 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
         async function createQuiz() {
             const title = document.getElementById('quizTitle').value.trim();
             const description = document.getElementById('quizDescription').value.trim();
-            
+
             if (!title) {
                 showToast('Введите название викторины', 'error');
                 return;
             }
-            
+
             try {
                 const formData = new FormData();
                 formData.append('action', 'create_quiz');
                 formData.append('title', title);
                 formData.append('description', description);
-                
+
                 const response = await fetch(window.location.href, {
                     method: 'POST',
                     body: formData,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showToast('Викторина создана!', 'success');
                     closeCreateQuizModal();
@@ -715,31 +731,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             if (!confirm('Вы уверены, что хотите удалить эту викторину? Все слайды и результаты будут удалены безвозвратно.')) {
                 return;
             }
-            
+
             try {
                 const formData = new FormData();
                 formData.append('action', 'delete_quiz');
                 formData.append('quiz_id', quizId);
-                
+
                 const response = await fetch(window.location.href, {
                     method: 'POST',
                     body: formData,
                     headers: { 'X-Requested-With': 'XMLHttpRequest' }
                 });
-                
+
                 const data = await response.json();
-                
+
                 if (data.success) {
                     showToast('Викторина удалена', 'success');
                     // Удаляем строку из таблицы
                     const row = document.querySelector(`tr[data-quiz-id="${quizId}"]`);
                     if (row) row.remove();
-                    
+
                     // Обновляем счетчик
                     const totalQuizzesSpan = document.getElementById('totalQuizzes');
                     let currentCount = parseInt(totalQuizzesSpan.textContent);
                     totalQuizzesSpan.textContent = currentCount - 1;
-                    
+
                     // Если викторин не осталось, показываем пустое состояние
                     const tbody = document.querySelector('#quizzesList tbody');
                     if (tbody && tbody.children.length === 0) {
@@ -764,14 +780,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
             toast.className = `toast ${type}`;
             toast.textContent = message;
             document.body.appendChild(toast);
-            
+
             setTimeout(() => {
                 toast.remove();
             }, 3000);
         }
 
         // Закрытие модального окна по клику вне его
-        window.onclick = function(event) {
+        window.onclick = function (event) {
             const modal = document.getElementById('createQuizModal');
             if (event.target === modal) {
                 closeCreateQuizModal();
@@ -779,4 +795,5 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_SERVER['HTTP_X_REQUESTED_WI
         }
     </script>
 </body>
+
 </html>
